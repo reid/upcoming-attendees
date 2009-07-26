@@ -1,8 +1,16 @@
 <?php
 
-function stop ($msg) {
-    header("HTTP/1.1 500 Internal Server Error");
-    echo $msg;
+function stop ($msg, $code = 400) {
+    static $labels = array(
+        400 => 'Bad Request',
+        404 => 'Not Found',
+        500 => 'Internal Server Error'
+    );
+    header("HTTP/1.1 $code {$labels[$code]}");
+    echo json_encode(array(
+        'status' => $code,
+        'error' => $msg
+    ));
     exit(1);
 }
 
@@ -18,20 +26,33 @@ function upcoming_attendees_html($event, $types = array('attend')) {
     $json = file_get_contents($yql);
     $json = json_decode($json);
 
-    if (!$json || !is_object($json)) stop('Bad YQL response');
+    if (!$json || !is_object($json)) stop('Bad YQL response', 500);
+
+    $results = $json->query->results;
+    if (!$results) stop('Event not found', 404);
 
     $html = '';
-    foreach ($types as $type) $html .= $json->query->results->rsp->$type;
-    if (!$html) stop('Bad YQL data structure');
+    foreach ($types as $type) $html .= $results->rsp->$type;
+    if (!$html) stop('Bad YQL data structure', 500);
 
     return html_entity_decode($html);
 }
 
 $html = upcoming_attendees_html($event, $types);
 
-preg_match_all('/property="vcard.*href="(.*)".*\>(.*)\<\/a/', $html, $matches);
+preg_match_all('/img src="(.*)" c.*property="vcard.*href="(.*)".*\>(.*)\<\/a/', $html, $matches);
 
-$people = array_combine($matches[1], $matches[2]);
+$people = array();
+
+$uris = $matches[2];
+foreach ($uris as $idx => $uri) {
+    $fn = $matches[3][$idx];
+    $pic = $matches[1][$idx];
+    $people[$uri] = array(
+        'fn' => $fn,
+        'photo' => $pic
+    );
+}
 
 $response = array(
     'event' => $event,
