@@ -53,7 +53,7 @@ function upcoming_attendees_html($event, $types = array('attend')) {
     if (!$results) stop('Event not found', 404);
 
     $html = '';
-    foreach ($types as $type) $html .= $results->rsp->$type;
+    foreach ($types as $type) $html .= $results->rsp->$type . "\n";
     if (!$html) stop('Bad YQL data structure', 500);
 
     return html_entity_decode($html);
@@ -69,7 +69,7 @@ if (isset($_GET['types'])) $types = explode(',', $_GET['types']);
 
 $html = upcoming_attendees_html($event, $types);
 
-preg_match_all('/img src="(.*)" c.*property="vcard.*href="(.*)".*\>(.*)\<\/a/', $html, $matches);
+preg_match_all('/img src=\"(.*)\" class=\"avatar\".*property=\"vcard.*href=\"(.*)\".*\>(.*)\<\/a/', $html, $matches);
 
 $people = array();
 
