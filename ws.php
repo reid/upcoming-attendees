@@ -1,5 +1,32 @@
 <?php
 
+function serve_content_type () {
+    $formats = array(
+        'application/json' => 'json',
+        'text/plain' => 'text'
+    );
+    $types = array();
+
+    foreach (explode(',', $_SERVER['HTTP_ACCEPT']) as $type) {
+        $type = explode(';q=', $type);
+        if (!isset($type[1])) $type[1] = 1;
+        $types[$type[0]] = $type[1];
+    }
+
+    arsort($types);
+    $types['application/json'] = 1;
+
+    foreach (
+        array_keys($types) as $mime
+    ) if (isset($formats[$mime])) break;
+
+    $datatype = $formats[$mime];
+
+    header("Content-type: $mime");
+
+    return $datatype;
+}
+
 function stop ($msg, $code = 400) {
     static $labels = array(
         400 => 'Bad Request',
@@ -13,12 +40,6 @@ function stop ($msg, $code = 400) {
     ));
     exit(1);
 }
-
-if (!isset($_GET['event'])) stop('No event ID');
-$event = $_GET['event'];
-
-$types = array('attend');
-if (isset($_GET['types'])) $types = explode(',', $_GET['types']);
 
 function upcoming_attendees_html($event, $types = array('attend')) {
     $yql = "http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20xml%20where%20url%20%3D%20%22http%3A%2F%2Fupcoming.yahoo.com%2Fajax%2Fevent_page_all_attendees.php%3Fevent_id%3D$event%22%3B&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=";
@@ -37,6 +58,14 @@ function upcoming_attendees_html($event, $types = array('attend')) {
 
     return html_entity_decode($html);
 }
+
+serve_content_type();
+
+if (!isset($_GET['event'])) stop('No event ID');
+$event = $_GET['event'];
+
+$types = array('attend');
+if (isset($_GET['types'])) $types = explode(',', $_GET['types']);
 
 $html = upcoming_attendees_html($event, $types);
 
